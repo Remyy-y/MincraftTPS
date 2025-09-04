@@ -1,0 +1,64 @@
+const express = require('express');
+const { exec } = require('child_process'); // 引入 Node.js 内置的命令执行模块
+const cors = require('cors');
+const app = express();
+const port = 2000;
+
+// --- 配置区域 ---
+// 请根据您的实际情况修改以下配置
+const RCON_CONFIG = {
+    // rcon 可执行文件的绝对路径
+    EXECUTABLE: '/root/tps/rcon',
+    // 您的服务器地址和 RCON 端口
+    ADDRESS: '127.0.0.1:33333',
+    // 您的 RCON 密码
+    PASSWORD: '521314'
+};
+// --- 配置结束 ---
+
+app.use(cors());
+
+// API 端点
+app.get('/api/performance', (req, res) => {
+    // 拼接完整的 RCON 命令
+    const command = `${RCON_CONFIG.EXECUTABLE} -a ${RCON_CONFIG.ADDRESS} -p ${RCON_CONFIG.PASSWORD} "neoforge tps overworld"`;
+
+    // 执行该命令
+    exec(command, (error, stdout, stderr) => {
+        // 如果命令执行失败
+        if (error) {
+            console.error(`RCON command execution error: ${error.message}`);
+            return res.status(500).json({ error: 'Failed to execute RCON command.' });
+        }
+        // 如果 RCON 有错误输出 (例如密码错误)
+        if (stderr) {
+            console.warn(`RCON command stderr: ${stderr}`);
+        }
+
+        // 解析命令的成功输出, 例如: "Overworld: 20.000 TPS (38.116 ms/tick)"
+        const output = stdout.trim();
+        const tpsRegex = /: ([\d\.]+) TPS \(([\d\.]+) ms\/tick\)/;
+        const match = output.match(tpsRegex);
+
+        // 如果正则表达式成功匹配到数据
+        if (match && match[1] && match[2]) {
+            const tps = parseFloat(match[1]).toFixed(2);
+            const mspt = parseFloat(match[2]).toFixed(2);
+
+            // 返回格式化的 JSON 数据
+            res.json({
+                tps: tps,
+                mspt: mspt,
+                lastUpdated: new Date().toISOString()
+            });
+        } else {
+            // 如果无法解析输出
+            console.error('Failed to parse RCON output. Raw output:', output);
+            res.status(404).json({ error: 'Could not parse TPS data from command output.' });
+        }
+    });
+});
+
+app.listen(port, () => {
+    console.log(`Minecraft Status API (RCON Mode) is listening on port ${port}`);
+});
