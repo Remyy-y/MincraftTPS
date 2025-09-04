@@ -4,4 +4,5 @@
 下载https://github.com/gorcon/rcon-cli 给权限
 `node install`下载依赖
 `node cron-tps.js`运行
-# 监听本地https://ip:2000/api/performance
+# 监听地址
+`ip:2000/api/performance`
